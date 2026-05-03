@@ -1,0 +1,386 @@
+openapi: 3.0.0
+info:
+  title: Call Booking API
+  version: 0.1.0
+  description: API contract for a small appointment booking service without authentication.
+tags:
+  - name: Public
+  - name: Owner
+paths:
+  /owner/bookings/upcoming:
+    get:
+      operationId: OwnerApi_listUpcomingBookings
+      description: Returns upcoming bookings across all event types, ordered by start time ascending.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+      tags:
+        - Owner
+  /owner/event-types:
+    get:
+      operationId: OwnerApi_listOwnerEventTypes
+      description: Returns all event types managed by the owner.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventType'
+      tags:
+        - Owner
+    post:
+      operationId: OwnerApi_createEventType
+      description: Creates a new event type managed by the owner.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventType'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      tags:
+        - Owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventTypeRequest'
+  /owner/profile:
+    get:
+      operationId: OwnerApi_getOwner
+      description: Returns the predefined owner profile.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+      tags:
+        - Owner
+  /public/bookings:
+    post:
+      operationId: PublicApi_createBooking
+      description: Creates a booking for a free slot. The server rejects occupied slots, slots outside the 14-day booking window, and unknown event types.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      tags:
+        - Public
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+  /public/event-types:
+    get:
+      operationId: PublicApi_listPublicEventTypes
+      description: Returns event types visible to guests.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventType'
+      tags:
+        - Public
+  /public/event-types/{eventTypeId}:
+    get:
+      operationId: PublicApi_getPublicEventType
+      description: Returns one public event type.
+      parameters:
+        - name: eventTypeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventType'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      tags:
+        - Public
+  /public/event-types/{eventTypeId}/slots:
+    get:
+      operationId: PublicApi_listSlots
+      description: Returns 30-minute slots for the selected event type within the next 14 days from the current date. Occupied time is unavailable globally across all event types.
+      parameters:
+        - name: eventTypeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Slot'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      tags:
+        - Public
+components:
+  schemas:
+    ApiError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+      description: Standard error body.
+    Booking:
+      type: object
+      required:
+        - id
+        - eventTypeId
+        - eventTypeTitle
+        - guest
+        - startsAt
+        - endsAt
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: Stable booking identifier generated by the server.
+        eventTypeId:
+          type: string
+          description: Booked event type.
+        eventTypeTitle:
+          type: string
+          description: Snapshot of event type title at booking time.
+        guest:
+          allOf:
+            - $ref: '#/components/schemas/Guest'
+          description: Guest who booked the meeting.
+        startsAt:
+          type: string
+          format: date-time
+          description: Booking start time in ISO 8601 format.
+        endsAt:
+          type: string
+          format: date-time
+          description: Booking end time in ISO 8601 format.
+        createdAt:
+          type: string
+          format: date-time
+          description: Booking creation time in ISO 8601 format.
+      description: A confirmed appointment created by a guest.
+    CreateBookingRequest:
+      type: object
+      required:
+        - eventTypeId
+        - startsAt
+        - guestName
+        - guestEmail
+      properties:
+        eventTypeId:
+          type: string
+          description: Event type selected by the guest.
+        startsAt:
+          type: string
+          format: date-time
+          description: Start time of the selected free slot in ISO 8601 format.
+        guestName:
+          type: string
+          minLength: 1
+          description: Guest name.
+        guestEmail:
+          type: string
+          format: email
+          description: Guest email.
+      description: Input for creating a booking from a public slot.
+    CreateEventTypeRequest:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - durationMinutes
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Client-defined stable event type identifier.
+        title:
+          type: string
+          minLength: 1
+          description: Human-readable event type title.
+        description:
+          type: string
+          description: Short public description.
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 1
+          description: Meeting duration in minutes. The default product scenario uses 30-minute slots.
+      description: Input for creating an event type.
+    ErrorCode:
+      type: string
+      enum:
+        - validationFailed
+        - eventTypeNotFound
+        - slotUnavailable
+        - bookingWindowExceeded
+        - duplicateEventType
+      description: Machine-readable error code.
+    EventType:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - durationMinutes
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Stable event type identifier.
+        title:
+          type: string
+          minLength: 1
+          description: Human-readable event type title.
+        description:
+          type: string
+          description: Short public description.
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 1
+          description: Meeting duration in minutes.
+      description: Meeting type that can be booked by a guest.
+    Guest:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Guest display name.
+        email:
+          type: string
+          format: email
+          description: Guest email for meeting communication.
+      description: Guest data required to create a booking.
+    Owner:
+      type: object
+      required:
+        - id
+        - name
+        - email
+      properties:
+        id:
+          type: string
+          description: Stable owner identifier.
+        name:
+          type: string
+          minLength: 1
+          description: Public owner display name.
+        email:
+          type: string
+          format: email
+          description: Public owner contact email.
+      description: Default owner profile used by the admin part of the application.
+    Slot:
+      type: object
+      required:
+        - eventTypeId
+        - startsAt
+        - endsAt
+        - available
+      properties:
+        eventTypeId:
+          type: string
+          description: Event type this slot belongs to.
+        startsAt:
+          type: string
+          format: date-time
+          description: Slot start time in ISO 8601 format.
+        endsAt:
+          type: string
+          format: date-time
+          description: Slot end time in ISO 8601 format.
+        available:
+          type: boolean
+          description: Whether a guest can book this slot.
+      description: A concrete available or occupied time interval for one event type.
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+    variables: {}
