@@ -34,6 +34,7 @@ export function SlotPicker({ slots, selectedStartsAt, onSelect }: SlotPickerProp
               return (
                 <Button
                   key={`${slot.eventTypeId}-${slot.startsAt}`}
+                  aria-label={`Выбрать слот ${dayjs(slot.startsAt).format('DD MMMM YYYY, HH:mm')}`}
                   variant={isSelected ? 'filled' : 'light'}
                   color={slot.available ? 'teal' : 'gray'}
                   disabled={!slot.available}
