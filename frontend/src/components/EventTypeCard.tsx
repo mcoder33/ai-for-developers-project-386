@@ -23,6 +23,7 @@ export function EventTypeCard({ eventType }: EventTypeCardProps) {
         <Button
           component={Link}
           to={`/event-types/${encodeURIComponent(eventType.id)}`}
+          aria-label={`Выбрать время: ${eventType.title}`}
           rightSection={<IconArrowRight size={17} />}
           mt="auto"
           color="dark"
