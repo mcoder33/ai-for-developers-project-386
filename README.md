@@ -17,31 +17,41 @@ Design First contract for a small appointment booking service.
 Install dependencies:
 
 ```sh
-npm install
+make install
 ```
 
 Compile TypeSpec to OpenAPI:
 
 ```sh
-npm run spec:compile
+make spec-compile
 ```
 
 The generated OpenAPI file is written to `tsp-output/openapi/openapi.yaml`.
 
-Run the frontend:
+Run the backend and frontend together:
 
 ```sh
-cd frontend
-npm install
-npm run dev
+make dev
 ```
 
-By default the UI reads API data from `http://localhost:4010`. Override it with `VITE_API_BASE_URL`.
+This starts the Go API on `http://localhost:3000` and Vite frontend on its dev-server URL. The frontend uses `http://localhost:3000` as `VITE_API_BASE_URL` by default.
 
-Run a Prism mock API from the frontend folder:
+Run only the frontend:
 
 ```sh
-npm run mock:api
+make frontend-dev
+```
+
+Override the frontend API URL when needed:
+
+```sh
+make frontend-dev VITE_API_BASE_URL=http://localhost:4010
+```
+
+Run a Prism mock API:
+
+```sh
+make mock-api
 ```
 
 ## Go backend
@@ -49,21 +59,21 @@ npm run mock:api
 Run the in-memory backend implementation:
 
 ```sh
-cd backend
-go run .
+make backend-dev
 ```
 
-The backend listens on `http://localhost:3000`. For the frontend, run Vite with:
+The backend listens on `http://localhost:3000`.
+
+Build the frontend:
 
 ```sh
-VITE_API_BASE_URL=http://localhost:3000 npm run dev
+make frontend-build
 ```
 
 Backend tests:
 
 ```sh
-cd backend
-go test ./...
+make backend-test
 ```
 
 ## Docker
@@ -71,8 +81,8 @@ go test ./...
 Build and run the production image:
 
 ```sh
-docker build -t call-booking-app .
-docker run --rm -e PORT=3000 -p 3000:3000 call-booking-app
+make docker-build
+make docker-run
 ```
 
 The container serves the React frontend and the Go API from one process. The frontend calls the API under `/api`.
