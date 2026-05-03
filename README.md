@@ -43,3 +43,25 @@ Run a Prism mock API from the frontend folder:
 ```sh
 npm run mock:api
 ```
+
+## Go backend
+
+Run the in-memory backend implementation:
+
+```sh
+cd backend
+go run .
+```
+
+The backend listens on `http://localhost:3000`. For the frontend, run Vite with:
+
+```sh
+VITE_API_BASE_URL=http://localhost:3000 npm run dev
+```
+
+Backend tests:
+
+```sh
+cd backend
+go test ./...
+```
