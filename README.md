@@ -65,3 +65,18 @@ Backend tests:
 cd backend
 go test ./...
 ```
+
+## Docker
+
+Build and run the production image:
+
+```sh
+docker build -t call-booking-app .
+docker run --rm -e PORT=3000 -p 3000:3000 call-booking-app
+```
+
+The container serves the React frontend and the Go API from one process. The frontend calls the API under `/api`.
+
+## Deployment
+
+Render deployment is described in `render.yaml`.

@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/mail"
 	"os"
+	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -122,18 +124,46 @@ type Server struct {
 	store *Store
 }
 
-func NewServer(store *Store) http.Handler {
+func NewServer(store *Store, staticDirs ...string) http.Handler {
 	server := &Server{store: store}
+	apiMux := server.apiMux()
+	var staticHandler http.Handler
+	staticDir := ""
+	if len(staticDirs) > 0 {
+		staticDir = staticDirs[0]
+		if staticFileExists(staticDir, "/index.html") {
+			staticHandler = spaFileServer(staticDir)
+		}
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api" || strings.HasPrefix(r.URL.Path, "/api/") {
+			http.StripPrefix("/api", apiMux).ServeHTTP(w, r)
+			return
+		}
+
+		if staticHandler != nil && (acceptsHTML(r) || staticFileExists(staticDir, r.URL.Path)) {
+			staticHandler.ServeHTTP(w, r)
+			return
+		}
+
+		apiMux.ServeHTTP(w, r)
+	})
+
+	return cors(handler)
+}
+
+func (s *Server) apiMux() http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/public/event-types", server.handlePublicEventTypes)
-	mux.HandleFunc("/public/event-types/", server.handlePublicEventTypeByID)
-	mux.HandleFunc("/public/bookings", server.handlePublicBookings)
-	mux.HandleFunc("/owner/profile", server.handleOwnerProfile)
-	mux.HandleFunc("/owner/event-types", server.handleOwnerEventTypes)
-	mux.HandleFunc("/owner/bookings/upcoming", server.handleUpcomingBookings)
+	mux.HandleFunc("/public/event-types", s.handlePublicEventTypes)
+	mux.HandleFunc("/public/event-types/", s.handlePublicEventTypeByID)
+	mux.HandleFunc("/public/bookings", s.handlePublicBookings)
+	mux.HandleFunc("/owner/profile", s.handleOwnerProfile)
+	mux.HandleFunc("/owner/event-types", s.handleOwnerEventTypes)
+	mux.HandleFunc("/owner/bookings/upcoming", s.handleUpcomingBookings)
 
-	return cors(mux)
+	return mux
 }
 
 func main() {
@@ -141,12 +171,48 @@ func main() {
 	if port == "" {
 		port = defaultPort
 	}
+	staticDir := os.Getenv("STATIC_DIR")
+	if staticDir == "" {
+		staticDir = "frontend/dist"
+	}
 
 	addr := ":" + port
-	log.Printf("call booking API listening on http://localhost%s", addr)
-	if err := http.ListenAndServe(addr, NewServer(NewStore(nil))); err != nil {
+	log.Printf("call booking app listening on http://localhost%s", addr)
+	if err := http.ListenAndServe(addr, NewServer(NewStore(nil), staticDir)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func spaFileServer(staticDir string) http.Handler {
+	fileServer := http.FileServer(http.Dir(staticDir))
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			methodNotAllowed(w)
+			return
+		}
+
+		if staticFileExists(staticDir, r.URL.Path) {
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+
+		http.ServeFile(w, r, filepath.Join(staticDir, "index.html"))
+	})
+}
+
+func staticFileExists(staticDir string, urlPath string) bool {
+	cleanPath := strings.TrimPrefix(path.Clean("/"+urlPath), "/")
+	if cleanPath == "." || cleanPath == "" {
+		cleanPath = "index.html"
+	}
+
+	info, err := os.Stat(filepath.Join(staticDir, filepath.FromSlash(cleanPath)))
+	return err == nil && !info.IsDir()
+}
+
+func acceptsHTML(r *http.Request) bool {
+	return strings.Contains(r.Header.Get("Accept"), "text/html")
 }
 
 func (s *Server) handlePublicEventTypes(w http.ResponseWriter, r *http.Request) {
